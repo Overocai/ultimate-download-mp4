@@ -1,0 +1,25 @@
+TikTok Ultimate Downloader - Termos de Uso
+
+Copyright (c) 2026
+
+PERMISSAO DE USO
+Este software e fornecido gratuitamente para USO PESSOAL. Voce pode
+instala-lo e utiliza-lo para baixar conteudo do qual tenha direito de
+acesso.
+
+ISENCAO DE RESPONSABILIDADE
+O programa e fornecido "COMO ESTA", sem garantias de qualquer tipo,
+expressas ou implicitas. Os autores nao se responsabilizam por
+quaisquer danos decorrentes do uso desta ferramenta.
+
+USO RESPONSAVEL
+Ao utilizar este programa, voce concorda em:
+ - respeitar os Termos de Servico do TikTok;
+ - respeitar os direitos autorais dos criadores de conteudo;
+ - nao utilizar o software para fins ilegais.
+
+O download de conteudo de terceiros pode estar sujeito a leis de
+direitos autorais. A responsabilidade pelo uso e inteiramente do
+usuario.
+
+Ao clicar em "Aceito", voce declara estar de acordo com estes termos.

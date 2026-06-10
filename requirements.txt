@@ -1,0 +1,26 @@
+# ==========================================================
+# TikTok Ultimate Downloader - Dependencias
+# ==========================================================
+# Interface grafica moderna (tema escuro)
+customtkinter>=5.2.2
+
+# Motor de download (sem marca d'agua + maior qualidade)
+yt-dlp>=2024.12.13
+
+# OBS sobre FFmpeg: ele NAO e mais embutido (tem ~80 MB). O app baixa o
+# FFmpeg automaticamente, uma unica vez, somente quando o usuario escolhe
+# baixar em MP3 - assim o executavel fica leve. O download de video (MP4)
+# nao precisa de FFmpeg. (Opcional: instale 'imageio-ffmpeg' para ja ter o
+# FFmpeg em ambiente de desenvolvimento e evitar esse download.)
+
+# Manipulacao de imagens / icones (usado pelo CustomTkinter e gerador de icone)
+Pillow>=10.3.0
+
+# Requisicoes HTTP (verificacao de atualizacoes e fallback de API)
+requests>=2.31.0
+
+# Notificacoes nativas do sistema operacional
+plyer>=2.1.0
+
+# Empacotamento em .exe (apenas para build, nao e necessario em runtime)
+pyinstaller>=6.6.0

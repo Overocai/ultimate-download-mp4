@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+.deps_ok
+
+# Inno Setup (instalador gerado) - vai como asset do Release, nao no repo
+installer/
+TikTokUltimateDownloader-Setup-*.exe
+
+# Pasta de configuracao do Claude Code
+.claude/
+
+# Ferramentas baixadas localmente (ex.: UPX)
+tools/
+
+# Imagens geradas automaticamente
+assets/icon.ico
+assets/wizard_large.bmp
+assets/wizard_small.bmp
+
+# Configuracoes locais / IDE
+.vscode/
+.idea/
+*.log
