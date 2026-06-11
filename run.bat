@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Executa o aplicativo SEM gerar o .exe (modo desenvolvimento)
+REM  Ultimate Download MP4 - Executa SEM gerar o .exe (dev)
 REM ============================================================
 setlocal
 chcp 65001 >nul

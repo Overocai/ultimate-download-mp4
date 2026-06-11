@@ -1,5 +1,5 @@
 ; ============================================================
-;  TikTok Ultimate Downloader - Instalador (Inno Setup)
+;  Ultimate Download MP4 - Instalador (Inno Setup)
 ;  Estilo "assistente classico" (parecido com o do Node.js):
 ;   - Pagina de boas-vindas com IMAGEM LATERAL grande;
 ;   - Pagina de LICENCA (aceitar os termos);
@@ -9,16 +9,16 @@
 ;   - Desinstalador registrado no Windows.
 ;
 ;  Compilar: duplo clique em build_installer.bat
-;  Pre-requisito: dist\TikTokUltimateDownloader.exe (rode build.bat antes).
+;  Pre-requisito: dist\UltimateDownloadMP4.exe (rode build.bat antes).
 ; ============================================================
 
-#define AppName "TikTok Ultimate Downloader"
-#define AppVersion "1.2.0"
-#define AppPublisher "TikTok Ultimate Downloader"
-#define AppExeName "TikTokUltimateDownloader.exe"
+#define AppName "Ultimate Download MP4"
+#define AppVersion "2.0.0"
+#define AppPublisher "Ultimate Download MP4"
+#define AppExeName "UltimateDownloadMP4.exe"
 
 [Setup]
-AppId={{8F3C2A91-7E64-4B2D-9C1A-3D5E7F9A1B2C}
+AppId={{B7E1B2B0-3C44-4F5A-9E21-7A2D6C8F1E90}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
@@ -29,7 +29,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 
 ; --- Saida (na propria pasta do projeto, nao numa subpasta) ---
 OutputDir=.
-OutputBaseFilename=TikTokUltimateDownloader-Setup-{#AppVersion}
+OutputBaseFilename=UltimateDownloadMP4-Setup-{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 

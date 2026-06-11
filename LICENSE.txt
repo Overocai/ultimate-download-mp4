@@ -1,4 +1,4 @@
-TikTok Ultimate Downloader - Termos de Uso
+Ultimate Download MP4 - Termos de Uso
 
 Copyright (c) 2026
 
@@ -14,7 +14,8 @@ quaisquer danos decorrentes do uso desta ferramenta.
 
 USO RESPONSAVEL
 Ao utilizar este programa, voce concorda em:
- - respeitar os Termos de Servico do TikTok;
+ - respeitar os Termos de Servico de cada plataforma (TikTok, YouTube,
+   Instagram, X/Twitter e demais sites);
  - respeitar os direitos autorais dos criadores de conteudo;
  - nao utilizar o software para fins ilegais.
 

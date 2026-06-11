@@ -85,16 +85,16 @@ def make_large(path):
     d.rounded_rectangle([bx0, by0, bx0 + box, by0 + box], radius=16,
                         fill=SURFACE, outline=CYAN, width=2)
     note_font = _sym_font(34)
-    _center(d, "♫", note_font, cx, by0 + 8, CYAN)
+    _center(d, "↓", note_font, cx, by0 + 6, CYAN)
 
     # Titulo em tres linhas.
-    _center(d, "TikTok", _font(22, bold=True), cx, 124, CYAN)
-    _center(d, "Ultimate", _font(18, bold=True), cx, 152, WHITE)
-    _center(d, "Downloader", _font(18, bold=True), cx, 174, WHITE)
+    _center(d, "Ultimate", _font(20, bold=True), cx, 122, WHITE)
+    _center(d, "Download", _font(20, bold=True), cx, 146, WHITE)
+    _center(d, "MP4", _font(24, bold=True), cx, 170, CYAN)
 
     # Subtitulo.
-    _center(d, "Sem marca d'agua", _font(11), cx, 208, MUTED)
-    _center(d, "MP4  -  MP3", _font(11), cx, 224, MUTED)
+    _center(d, "TikTok . YouTube", _font(11), cx, 210, MUTED)
+    _center(d, "Instagram . X/Twitter", _font(11), cx, 226, MUTED)
 
     # Barra de acento ciano->magenta na base.
     _hgradient_bar(d, 0, H - 10, W, H, CYAN, MAGENTA)
@@ -113,7 +113,7 @@ def make_small(path):
     bx0, by0 = (W - box) // 2, (H - box) // 2
     d.rounded_rectangle([bx0, by0, bx0 + box, by0 + box], radius=12,
                         fill=SURFACE, outline=CYAN, width=2)
-    _center(d, "♫", _sym_font(26), W // 2, by0 + 5, CYAN)
+    _center(d, "↓", _sym_font(28), W // 2, by0 + 3, CYAN)
 
     img.save(path, format="BMP")
     print("Gerado:", path)

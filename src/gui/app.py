@@ -30,20 +30,28 @@ import customtkinter as ctk
 
 from .. import APP_NAME, __version__
 from ..config import Config
-from ..downloader import DownloadCancelled, TikTokDownloader
+from ..downloader import DownloadCancelled, MediaDownloader
 from ..history import History
 from ..i18n import Translator
 from ..notifications import notify
+from ..platforms import GENERIC, detect_platform, get_platform
 from ..updater import check_for_updates
-from ..utils import extract_first_url, fit_size, is_valid_tiktok_url, resource_path
-from . import flags, theme
+from ..utils import (
+    extract_first_url,
+    fit_size,
+    is_supported_url,
+    platform_output_dir,
+    resource_path,
+)
+from . import flags, platform_icons, theme
 
-# Tamanho da caixa da miniatura (formato vertical, como os videos do TikTok).
-THUMB_W = 128
-THUMB_H = 168
+# Tamanho da caixa da miniatura. Levemente "paisagem" para acomodar YouTube/
+# Twitter; conteudo vertical (Reels/TikTok) e centralizado preservando a proporcao.
+THUMB_W = 192
+THUMB_H = 136
 
 
-class TikTokDownloaderApp(ctk.CTk):
+class UltimateDownloadApp(ctk.CTk):
     """Aplicacao principal."""
 
     def __init__(self) -> None:
@@ -52,7 +60,7 @@ class TikTokDownloaderApp(ctk.CTk):
         # ---------------- Estado / servicos ----------------
         self.config_mgr = Config()
         self.history = History()
-        self.downloader = TikTokDownloader()
+        self.downloader = MediaDownloader()
         self.i18n = Translator(self.config_mgr.get("language", "pt"))
 
         self.msg_queue: "queue.Queue[dict]" = queue.Queue()
@@ -67,8 +75,13 @@ class TikTokDownloaderApp(ctk.CTk):
 
         # Referencias de imagens (evita coleta de lixo do Tkinter).
         self._thumb_ref = None
+        self._url_icon_ref = None      # icone da plataforma na linha do link
+        self._plat_icon_ref = None     # icone da plataforma no card de info
         self._flag_imgs: dict = {}
         self.flag_btns: dict = {}
+
+        # Plataforma atualmente detectada a partir do link.
+        self._detected_platform = None
 
         # Historico de logs (para restaurar ao trocar de idioma).
         self._log_history: list[str] = []
@@ -148,7 +161,7 @@ class TikTokDownloaderApp(ctk.CTk):
                                fg_color=theme.COLOR_SURFACE)
         logo_box.grid(row=0, column=0, rowspan=2, padx=(0, 16))
         logo_box.grid_propagate(False)
-        ctk.CTkLabel(logo_box, text="♫", font=(theme.FONT_FAMILY, 34, "bold"),
+        ctk.CTkLabel(logo_box, text="↓", font=(theme.FONT_FAMILY, 36, "bold"),
                     text_color=theme.COLOR_PRIMARY).place(relx=0.5, rely=0.5,
                                                          anchor="center")
 
@@ -258,9 +271,13 @@ class TikTokDownloaderApp(ctk.CTk):
                      border_width=1, corner_radius=theme.CORNER_RADIUS,
                      command=self._on_paste_click).grid(row=1, column=1, sticky="e")
 
-        self.url_status = ctk.CTkLabel(url_frame, text="", font=theme.FONT_SMALL,
+        status_row = ctk.CTkFrame(url_frame, fg_color="transparent")
+        status_row.grid(row=2, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        self.url_plat_icon = ctk.CTkLabel(status_row, text="", width=22)
+        self.url_plat_icon.grid(row=0, column=0, sticky="w")
+        self.url_status = ctk.CTkLabel(status_row, text="", font=theme.FONT_SMALL,
                                       text_color=theme.COLOR_TEXT_MUTED, anchor="w")
-        self.url_status.grid(row=2, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        self.url_status.grid(row=0, column=1, sticky="w", padx=(4, 0))
         self._on_url_changed()  # reavalia o estado do link apos reconstruir
 
         # ---- Pasta de destino ----
@@ -284,6 +301,10 @@ class TikTokDownloaderApp(ctk.CTk):
                      hover_color=theme.COLOR_BORDER, border_color=theme.COLOR_BORDER,
                      border_width=1, corner_radius=theme.CORNER_RADIUS,
                      command=self._on_browse_click).grid(row=1, column=1, sticky="e")
+
+        ctk.CTkLabel(folder_frame, text=t("folder_help"), font=theme.FONT_SMALL,
+                    text_color=theme.COLOR_TEXT_MUTED, anchor="w").grid(
+            row=2, column=0, columnspan=2, sticky="w", pady=(5, 0))
 
         # ---- Botoes de acao ----
         action_frame = ctk.CTkFrame(tab, fg_color="transparent")
@@ -327,8 +348,8 @@ class TikTokDownloaderApp(ctk.CTk):
                                        fg_color=theme.COLOR_BG, corner_radius=10)
         self.thumb_frame.grid(row=0, column=0, padx=16, pady=16)
         self.thumb_frame.grid_propagate(False)
-        self.thumb_label = ctk.CTkLabel(self.thumb_frame, text="♫",
-                                       font=(theme.FONT_FAMILY, 40),
+        self.thumb_label = ctk.CTkLabel(self.thumb_frame, text="↓",
+                                       font=(theme.FONT_FAMILY, 42, "bold"),
                                        text_color=theme.COLOR_BORDER)
         self.thumb_label.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -336,15 +357,24 @@ class TikTokDownloaderApp(ctk.CTk):
         details.grid(row=0, column=1, sticky="nsew", padx=(0, 16), pady=16)
         details.grid_columnconfigure((1, 3), weight=1)
 
+        # Linha da plataforma detectada (icone + nome).
+        plat_row = ctk.CTkFrame(details, fg_color="transparent")
+        plat_row.grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 4))
+        self.info_plat_icon = ctk.CTkLabel(plat_row, text="", width=26)
+        self.info_plat_icon.grid(row=0, column=0, sticky="w")
+        self.info_platform = ctk.CTkLabel(plat_row, text="--", font=theme.FONT_LABEL_BOLD,
+                                          text_color=theme.COLOR_PRIMARY, anchor="w")
+        self.info_platform.grid(row=0, column=1, sticky="w", padx=(6, 0))
+
         self.info_title = ctk.CTkLabel(details, text=t("info_none"),
                                       font=theme.FONT_LABEL_BOLD, text_color=theme.COLOR_TEXT,
-                                      anchor="w", justify="left", wraplength=560)
-        self.info_title.grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 12))
+                                      anchor="w", justify="left", wraplength=520)
+        self.info_title.grid(row=1, column=0, columnspan=4, sticky="w", pady=(2, 12))
 
-        self.info_author = self._info_field(details, t("f_author"), 1, 0)
-        self.info_duration = self._info_field(details, t("f_duration"), 1, 2)
-        self.info_resolution = self._info_field(details, t("f_resolution"), 2, 0)
-        self.info_size = self._info_field(details, t("f_size"), 2, 2)
+        self.info_author = self._info_field(details, t("f_author"), 2, 0)
+        self.info_duration = self._info_field(details, t("f_duration"), 2, 2)
+        self.info_resolution = self._info_field(details, t("f_resolution"), 3, 0)
+        self.info_size = self._info_field(details, t("f_size"), 3, 2)
 
         # ---- Barra de progresso + status ----
         progress_frame = ctk.CTkFrame(tab, fg_color="transparent")
@@ -451,7 +481,9 @@ class TikTokDownloaderApp(ctk.CTk):
                     text_color=theme.COLOR_TEXT, anchor="w", justify="left").grid(
             row=0, column=1, sticky="w", pady=(10, 2))
 
-        meta = (f"@{item.get('author', '--')}   |   {item.get('resolution', '--')}"
+        plat = item.get("platform", "")
+        prefix = f"{plat}   |   " if plat else ""
+        meta = (f"{prefix}@{item.get('author', '--')}   |   {item.get('resolution', '--')}"
                 f"   |   {item.get('duration', '--')}   |   {item.get('date', '')}")
         ctk.CTkLabel(row, text=meta, font=theme.FONT_SMALL,
                     text_color=theme.COLOR_TEXT_MUTED, anchor="w").grid(
@@ -552,14 +584,54 @@ class TikTokDownloaderApp(ctk.CTk):
         url = self.url_var.get().strip()
         if not hasattr(self, "url_status"):
             return
+        platform = detect_platform(url) if url else None
+        self._detected_platform = platform
+        self._set_url_platform_icon(platform)
+
         if not url:
             self.url_status.configure(text="")
-        elif is_valid_tiktok_url(url):
-            self.url_status.configure(text="✓  " + self.i18n.t("url_valid"),
-                                     text_color=theme.COLOR_SUCCESS)
-        else:
+        elif platform is None:
             self.url_status.configure(text="⚠  " + self.i18n.t("url_invalid"),
                                      text_color=theme.COLOR_WARNING)
+        elif platform.id == "generic":
+            self.url_status.configure(text="•  " + self.i18n.t("url_generic"),
+                                     text_color=theme.COLOR_TEXT_MUTED)
+        else:
+            self.url_status.configure(
+                text="✓  " + self.i18n.t("url_detected", platform=platform.name),
+                text_color=theme.COLOR_SUCCESS)
+
+    def _platform_label(self, platform) -> str:
+        """Nome amigavel da plataforma (traduz a curinga)."""
+        if platform is None:
+            return "--"
+        if platform.id == "generic":
+            return self.i18n.t("platform_unknown")
+        return platform.name
+
+    def _set_url_platform_icon(self, platform) -> None:
+        if not hasattr(self, "url_plat_icon"):
+            return
+        if platform is None:
+            self._url_icon_ref = None
+            self.url_plat_icon.configure(image=None, text="")
+            return
+        pil = platform_icons.render(platform, 18)
+        img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(18, 18))
+        self._url_icon_ref = img
+        self.url_plat_icon.configure(image=img, text="")
+
+    def _set_info_platform(self, platform) -> None:
+        """Atualiza o icone + nome da plataforma no card de informacoes."""
+        self.info_platform.configure(text=self._platform_label(platform))
+        if platform is None:
+            self._plat_icon_ref = None
+            self.info_plat_icon.configure(image=None, text="")
+            return
+        pil = platform_icons.render(platform, 24)
+        img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(24, 24))
+        self._plat_icon_ref = img
+        self.info_plat_icon.configure(image=img, text="")
 
     def _on_paste_click(self) -> None:
         try:
@@ -597,7 +669,7 @@ class TikTokDownloaderApp(ctk.CTk):
             self._log(self.i18n.t("st_paste_first"), level="warning")
             self._set_status(self.i18n.t("st_paste_first"), theme.COLOR_WARNING)
             return
-        if not is_valid_tiktok_url(url):
+        if not is_supported_url(url):
             self._log(self.i18n.t("st_link_invalid"), level="warning")
             self._set_status(self.i18n.t("st_link_invalid"), theme.COLOR_WARNING)
             return
@@ -606,8 +678,11 @@ class TikTokDownloaderApp(ctk.CTk):
             self.folder_var.set(folder)
         self.config_mgr.set("download_folder", folder)
 
+        platform = detect_platform(url) or GENERIC
+
         self.cancel_event.clear()
         self._reset_info_card()
+        self._set_info_platform(platform)
         self.progress.set(0)
         self.progress_pct.configure(text="0%")
         self._set_buttons_downloading(True)
@@ -618,8 +693,9 @@ class TikTokDownloaderApp(ctk.CTk):
         self._log(self.i18n.t("log_new_download", label=label, url=url))
 
         quality = self.config_mgr.get("preferred_quality", "best")
-        self.worker = threading.Thread(target=self._download_worker,
-                                      args=(url, folder, quality, mode), daemon=True)
+        self.worker = threading.Thread(
+            target=self._download_worker,
+            args=(url, folder, quality, mode, platform), daemon=True)
         self.worker.start()
 
     def _on_cancel_click(self) -> None:
@@ -631,22 +707,26 @@ class TikTokDownloaderApp(ctk.CTk):
     # ==================================================================
     # Thread de download
     # ==================================================================
-    def _download_worker(self, url, folder, quality, mode) -> None:
+    def _download_worker(self, url, base_folder, quality, mode, platform) -> None:
         def log_cb(text): self.msg_queue.put({"type": "log", "text": text})
         def progress_cb(data): self.msg_queue.put({"type": "progress", "data": data})
 
         try:
-            info = self.downloader.fetch_info(url)
+            info = self.downloader.fetch_info(url, platform)
             self.msg_queue.put({"type": "info", "data": info})
 
             thumb = self.downloader.fetch_thumbnail(info.get("thumbnail"))
             if thumb is not None:
                 self.msg_queue.put({"type": "thumbnail", "image": thumb})
 
+            # Cada plataforma e salva em sua propria subpasta (ex.: <base>/YouTube).
+            output_folder = platform_output_dir(base_folder, platform)
+
             final = self.downloader.download(
-                url=url, output_folder=folder, progress_callback=progress_cb,
+                url=url, output_folder=output_folder, progress_callback=progress_cb,
                 log_callback=log_cb, cancel_event=self.cancel_event,
-                preferred_quality=quality, mode=mode, info=info, tr=self.i18n.t)
+                preferred_quality=quality, mode=mode, info=info,
+                platform=platform, tr=self.i18n.t)
             self.msg_queue.put({"type": "done", "data": final})
         except DownloadCancelled:
             self.msg_queue.put({"type": "cancelled"})
@@ -657,13 +737,36 @@ class TikTokDownloaderApp(ctk.CTk):
     # Consumo da fila (thread principal)
     # ==================================================================
     def _process_queue(self) -> None:
+        # 1) Drena tudo o que chegou desde o ultimo tick.
+        msgs = []
         try:
             while True:
-                self._handle_message(self.msg_queue.get_nowait())
+                msgs.append(self.msg_queue.get_nowait())
         except queue.Empty:
             pass
-        finally:
-            self.after(80, self._process_queue)
+
+        # 2) Coalesce: ao baixar videos longos/playlists, o yt-dlp gera MUITOS
+        #    eventos de progresso. Mantemos apenas o ultimo de cada sequencia,
+        #    preservando a ordem (um "done" depois do progresso ainda vence).
+        #    Isso evita milhares de atualizacoes de widget por tick - a causa
+        #    de a interface "travar" ao baixar muitos videos.
+        collapsed = []
+        for m in msgs:
+            if (m.get("type") == "progress" and collapsed
+                    and collapsed[-1].get("type") == "progress"):
+                collapsed[-1] = m
+            else:
+                collapsed.append(m)
+
+        # 3) Processa cada mensagem isolando falhas: um erro em uma mensagem
+        #    nunca derruba o laco nem deixa a UI presa.
+        for m in collapsed:
+            try:
+                self._handle_message(m)
+            except Exception:
+                pass
+
+        self.after(80, self._process_queue)
 
     def _handle_message(self, msg: dict) -> None:
         kind = msg.get("type")
@@ -695,6 +798,9 @@ class TikTokDownloaderApp(ctk.CTk):
         if data.get("status") == "downloading":
             text = self.i18n.t("st_downloading", downloaded=data.get("downloaded", "0 B"),
                               total=data.get("total", "?"), speed=data.get("speed", "--"))
+            if data.get("count"):
+                text += self.i18n.t("st_item_suffix", index=data.get("index", 1),
+                                   count=data.get("count"))
             eta = data.get("eta")
             if eta:
                 text += self.i18n.t("st_eta", eta=self._fmt_eta(eta))
@@ -710,31 +816,44 @@ class TikTokDownloaderApp(ctk.CTk):
             return "--:--"
 
     def _on_download_done(self, final: dict) -> None:
+        # Restaura o estado da UI PRIMEIRO: assim, mesmo que algo abaixo
+        # falhe, os botoes voltam a funcionar (sem precisar reabrir o app).
         self._stop_anim()
+        self.worker = None
         self.progress.set(1.0)
         self.progress_pct.configure(text="100%")
         self._set_status(self.i18n.t("st_completed"), theme.COLOR_SUCCESS)
         self._set_buttons_downloading(False)
 
-        self.info_size.configure(text=final.get("filesize", "--"))
-        if final.get("resolution"):
-            self.info_resolution.configure(text=final["resolution"])
+        try:
+            self.info_size.configure(text=final.get("filesize", "--"))
+            if final.get("resolution"):
+                self.info_resolution.configure(text=final["resolution"])
 
-        self.history.add(final)
-        self._refresh_history()
-        self._log(self.i18n.t("log_file_saved", path=final.get("filepath", "")),
-                 level="success")
+            # Playlist: cada arquivo vira um item de historico; midia unica, um so.
+            entries = final.get("entries")
+            if entries:
+                for entry in entries:
+                    self.history.add(entry)
+            else:
+                self.history.add(final)
+            self._refresh_history()
+            self._log(self.i18n.t("log_file_saved", path=final.get("filepath", "")),
+                     level="success")
 
-        if self.config_mgr.get("notifications_enabled", True):
-            notify(self.i18n.t("notif_title"),
-                  self.i18n.t("notif_body", title=final.get("title", "Arquivo"),
-                            fmt=final.get("format", "")))
+            if self.config_mgr.get("notifications_enabled", True):
+                notify(self.i18n.t("notif_title"),
+                      self.i18n.t("notif_body", title=final.get("title", "Arquivo"),
+                                fmt=final.get("format", "")))
 
-        if self.config_mgr.get("open_folder_after", False) and final.get("filepath"):
-            self._open_in_explorer(final["filepath"])
+            if self.config_mgr.get("open_folder_after", False) and final.get("filepath"):
+                self._open_in_explorer(final["filepath"])
+        except Exception as exc:
+            self._log(self.i18n.t("log_open_fail", error=exc), level="warning")
 
     def _on_download_cancelled(self) -> None:
         self._stop_anim()
+        self.worker = None
         self.progress.set(0)
         self.progress_pct.configure(text="0%")
         self._set_status(self.i18n.t("st_cancelled"), theme.COLOR_WARNING)
@@ -743,6 +862,7 @@ class TikTokDownloaderApp(ctk.CTk):
 
     def _on_download_error(self, message: str) -> None:
         self._stop_anim()
+        self.worker = None
         self.progress.set(0)
         self.progress_pct.configure(text="0%")
         self._set_status(message, theme.COLOR_ERROR)
@@ -753,11 +873,15 @@ class TikTokDownloaderApp(ctk.CTk):
     # Card de informacoes / miniatura
     # ------------------------------------------------------------------
     def _fill_info_card(self, info: dict) -> None:
+        platform = (get_platform(info["platform_id"]) if info.get("platform_id")
+                    else self._detected_platform)
+        self._set_info_platform(platform)
         self.info_title.configure(text=info.get("title", "--"))
         self.info_author.configure(text=f"@{info.get('author', '--')}")
         self.info_duration.configure(text=info.get("duration", "--:--"))
         self.info_resolution.configure(text=info.get("resolution", "--"))
-        self.info_size.configure(text=self.i18n.t("val_calculating"))
+        est = info.get("filesize_estimate")
+        self.info_size.configure(text=f"~ {est}" if est else self.i18n.t("val_calculating"))
         self._log(self.i18n.t("log_video_info", title=info.get("title"),
                             author=info.get("author"), duration=info.get("duration"),
                             resolution=info.get("resolution")))
@@ -777,7 +901,7 @@ class TikTokDownloaderApp(ctk.CTk):
                       self.info_resolution, self.info_size):
             field.configure(text="--")
         self._thumb_ref = None
-        self.thumb_label.configure(image=None, text="♫")
+        self.thumb_label.configure(image=None, text="↓")
 
     # ------------------------------------------------------------------
     # Animacao do botao ativo
@@ -834,6 +958,14 @@ class TikTokDownloaderApp(ctk.CTk):
 
         self.log_box.configure(state="normal")
         self.log_box.insert("end", line)
+        # Em sessoes longas (muitos downloads) o textbox cresceria sem limite e
+        # iria deixando a interface lenta. Mantemos apenas as ultimas linhas.
+        try:
+            line_count = int(self.log_box.index("end-1c").split(".")[0])
+            if line_count > 600:
+                self.log_box.delete("1.0", f"{line_count - 400}.0")
+        except Exception:
+            pass
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 

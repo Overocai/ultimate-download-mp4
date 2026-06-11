@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  TikTok Ultimate Downloader - Script de build (.exe)
+REM  Ultimate Download MP4 - Script de build (.exe)
 REM ============================================================
 REM  Gera um unico executavel (onefile) em /dist usando PyInstaller.
 REM  Basta dar duplo clique neste arquivo OU rodar no terminal:
@@ -13,7 +13,7 @@ cd /d "%~dp0"
 
 echo.
 echo ============================================================
-echo   TikTok Ultimate Downloader - Build
+echo   Ultimate Download MP4 - Build
 echo ============================================================
 echo.
 
@@ -58,10 +58,13 @@ REM  Observacao: NAO embutimos o FFmpeg no .exe (ele tem ~80 MB!). O app
 REM  baixa o FFmpeg automaticamente, uma unica vez, somente se o usuario
 REM  optar por baixar em MP3. Assim o executavel fica bem mais leve e o
 REM  download de video (MP4) funciona normalmente sem ele.
+REM  O --collect-submodules src.platforms garante que todas as plataformas
+REM  (TikTok, YouTube, Instagram, X/Twitter) entrem no pacote.
 pyinstaller --noconfirm --onefile --windowed ^
-    --name "TikTokUltimateDownloader" ^
+    --name "UltimateDownloadMP4" ^
     --icon "assets\icon.ico" ^
     --add-data "assets\icon.ico;assets" ^
+    --collect-submodules src.platforms ^
     --collect-all customtkinter ^
     --collect-all yt_dlp ^
     --collect-all plyer ^
@@ -83,7 +86,7 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 echo   Build concluido com sucesso!
-echo   Executavel: dist\TikTokUltimateDownloader.exe
+echo   Executavel: dist\UltimateDownloadMP4.exe
 echo ============================================================
 echo.
 pause

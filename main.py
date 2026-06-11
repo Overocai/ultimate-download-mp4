@@ -1,11 +1,14 @@
 """
-TikTok Ultimate Downloader
-==========================
+Ultimate Download MP4
+=====================
 Ponto de entrada do aplicativo.
 
 Este e o arquivo que deve ser executado (e o usado pelo PyInstaller
 para gerar o .exe). Ele apenas inicializa e abre a janela principal,
 tratando qualquer erro fatal de forma amigavel.
+
+O app baixa videos/audios de TikTok, YouTube, Instagram e X/Twitter,
+detectando a plataforma automaticamente pelo link.
 
 Execucao:
     python main.py
@@ -19,9 +22,9 @@ def main() -> None:
     try:
         # Import tardio: assim, se faltar alguma dependencia, mostramos
         # uma mensagem clara em vez de um traceback cru.
-        from src.gui.app import TikTokDownloaderApp
+        from src.gui.app import UltimateDownloadApp
 
-        app = TikTokDownloaderApp()
+        app = UltimateDownloadApp()
         app.run()
 
     except ImportError as exc:
@@ -46,7 +49,7 @@ def _fatal(message: str) -> None:
         import ctypes
 
         ctypes.windll.user32.MessageBoxW(
-            0, message, "TikTok Ultimate Downloader - Erro", 0x10
+            0, message, "Ultimate Download MP4 - Erro", 0x10
         )
     except Exception:
         pass

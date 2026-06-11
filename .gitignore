@@ -17,6 +17,7 @@ dist/
 
 # Inno Setup (instalador gerado) - vai como asset do Release, nao no repo
 installer/
+UltimateDownloadMP4-Setup-*.exe
 TikTokUltimateDownloader-Setup-*.exe
 
 # Pasta de configuracao do Claude Code

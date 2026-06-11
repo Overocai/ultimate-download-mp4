@@ -1,12 +1,12 @@
 @echo off
 REM ============================================================
-REM  Gera o INSTALADOR (Setup.exe) do TikTok Ultimate Downloader
+REM  Gera o INSTALADOR (Setup.exe) do Ultimate Download MP4
 REM ============================================================
 REM  Requisitos:
 REM   1) O executavel ja deve existir em dist\ (rode build.bat antes).
 REM   2) Inno Setup 6 instalado (winget install JRSoftware.InnoSetup).
 REM
-REM  Resultado: installer\TikTokUltimateDownloader-Setup-<versao>.exe
+REM  Resultado: UltimateDownloadMP4-Setup-<versao>.exe
 REM ============================================================
 
 setlocal
@@ -20,8 +20,8 @@ echo ============================================================
 echo.
 
 REM ---- Verifica se o executavel existe ----
-if not exist "dist\TikTokUltimateDownloader.exe" (
-    echo [ERRO] dist\TikTokUltimateDownloader.exe nao encontrado.
+if not exist "dist\UltimateDownloadMP4.exe" (
+    echo [ERRO] dist\UltimateDownloadMP4.exe nao encontrado.
     echo        Rode build.bat primeiro para gerar o executavel.
     pause
     exit /b 1
@@ -58,7 +58,7 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo   Instalador gerado: TikTokUltimateDownloader-Setup-1.2.0.exe
+echo   Instalador gerado: UltimateDownloadMP4-Setup-2.0.0.exe
 echo ============================================================
 echo.
 pause

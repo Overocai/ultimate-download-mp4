@@ -1,9 +1,9 @@
 """
 Historico dos ultimos downloads.
 
-Cada item guarda titulo, autor, resolucao, caminho do arquivo e a
-data/hora. E persistido em JSON em:
-    %APPDATA%\\TikTokUltimateDownloader\\history.json
+Cada item guarda titulo, autor, plataforma, resolucao, caminho do arquivo
+e a data/hora. E persistido em JSON em:
+    %APPDATA%\\Ultimate Download MP4\\history.json
 """
 
 import json
@@ -47,11 +47,12 @@ class History:
         Adiciona um download ao topo do historico.
 
         `info` deve conter as chaves: title, author, resolution,
-        duration, filepath.
+        duration, filepath (e, opcionalmente, platform_name).
         """
         entry = {
             "title": info.get("title", "Sem titulo"),
-            "author": info.get("author", "Desconhecido"),
+            "author": info.get("author", "--"),
+            "platform": info.get("platform_name", ""),
             "resolution": info.get("resolution", "--"),
             "duration": info.get("duration", "--:--"),
             "filepath": info.get("filepath", ""),

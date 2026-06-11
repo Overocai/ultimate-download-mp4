@@ -2,52 +2,62 @@
 Funcoes utilitarias compartilhadas por toda a aplicacao.
 
 Inclui:
-- Validacao/normalizacao de links do TikTok.
+- Validacao/extracao de links (delegada ao sistema modular de plataformas).
 - Formatacao de duracao e tamanho de arquivo.
 - Sanitizacao de nomes de arquivo.
-- Resolucao de caminhos compativel com PyInstaller.
+- Resolucao de caminhos compativel com PyInstaller e pastas por plataforma.
 """
 
 import os
 import re
 import sys
 
+from .platforms import Platform, detect_platform
+
 # ----------------------------------------------------------------------
-# Validacao de links do TikTok
+# Validacao / extracao de links
 # ----------------------------------------------------------------------
-# Cobre os principais formatos de URL do TikTok:
-#   - https://www.tiktok.com/@usuario/video/1234567890123456789
-#   - https://vm.tiktok.com/XXXXXXX/   (link curto compartilhado)
-#   - https://vt.tiktok.com/XXXXXXX/
-#   - https://m.tiktok.com/v/123456.html
-#   - https://www.tiktok.com/t/XXXXXXX/
-_TIKTOK_REGEX = re.compile(
-    r"https?://"
-    r"(?:www\.|m\.|vm\.|vt\.)?"      # subdominios opcionais
-    r"tiktok\.com/"                  # dominio principal
-    r"\S+",                          # restante do caminho
-    re.IGNORECASE,
-)
+# A deteccao de plataforma fica centralizada no pacote `src/platforms`.
+# Aqui apenas oferecemos atalhos usados pela interface.
+
+# Regex generico para achar uma URL http(s) dentro de um texto colado.
+_URL_REGEX = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
 
-def is_valid_tiktok_url(url: str) -> bool:
-    """Retorna True se a string contiver um link valido do TikTok."""
-    if not url:
-        return False
-    return bool(_TIKTOK_REGEX.search(url.strip()))
-
-
-def extract_first_url(text: str) -> str | None:
+def is_supported_url(url: str) -> bool:
     """
-    Extrai o primeiro link do TikTok encontrado em um texto.
+    Retorna True se a string contiver um link que o app sabe tratar.
 
-    Util quando o usuario cola algo como:
-    "Olha esse video https://vm.tiktok.com/ABC123/ kkkk"
+    Considera valida tanto uma plataforma conhecida (TikTok, YouTube,
+    Instagram, X/Twitter) quanto qualquer outra URL http(s) - nesse caso o
+    yt-dlp ainda pode conseguir baixar (curinga), mantendo compatibilidade.
+    """
+    return detect_platform(url) is not None
+
+
+def url_platform(url: str):
+    """Atalho para `detect_platform` (devolve a Platform ou None)."""
+    return detect_platform(url)
+
+
+def extract_first_url(text: str) -> "str | None":
+    """
+    Extrai a primeira URL util de um texto colado.
+
+    Preferimos a primeira URL de uma plataforma CONHECIDA; se nenhuma for
+    reconhecida, devolvemos a primeira URL http(s) encontrada. Util quando o
+    usuario cola algo como: "Olha esse video https://x.com/.../status/1 kkk".
     """
     if not text:
         return None
-    match = _TIKTOK_REGEX.search(text.strip())
-    return match.group(0) if match else None
+    urls = _URL_REGEX.findall(text.strip())
+    if not urls:
+        return None
+    for candidate in urls:
+        p = detect_platform(candidate)
+        if p is not None and p.id != "generic":
+            return candidate
+    return urls[0]
 
 
 # ----------------------------------------------------------------------
@@ -92,7 +102,7 @@ def format_speed(bytes_per_sec) -> str:
     return f"{format_filesize(bytes_per_sec)}/s"
 
 
-def fit_size(orig_w: int, orig_h: int, box_w: int, box_h: int) -> tuple[int, int]:
+def fit_size(orig_w: int, orig_h: int, box_w: int, box_h: int) -> "tuple[int, int]":
     """
     Calcula o tamanho para encaixar uma imagem dentro de uma caixa,
     preservando a proporcao (usado na miniatura do video).
@@ -109,7 +119,7 @@ def sanitize_filename(name: str, max_length: int = 120) -> str:
     e limita o tamanho para evitar caminhos longos demais.
     """
     if not name:
-        return "tiktok_video"
+        return "video"
 
     # Caracteres proibidos no Windows: \ / : * ? " < > |
     cleaned = re.sub(r'[\\/:*?"<>|]', "", name)
@@ -119,7 +129,7 @@ def sanitize_filename(name: str, max_length: int = 120) -> str:
     cleaned = cleaned.rstrip(". ")
 
     if not cleaned:
-        cleaned = "tiktok_video"
+        cleaned = "video"
 
     return cleaned[:max_length]
 
@@ -148,19 +158,33 @@ def app_data_dir() -> str:
     """
     Pasta onde guardamos configuracoes e historico do usuario.
 
-    Usa %APPDATA%\\TikTokUltimateDownloader no Windows; cria se nao existir.
+    Usa %APPDATA%\\Ultimate Download MP4 no Windows; cria se nao existir.
     """
     base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    path = os.path.join(base, "TikTokUltimateDownloader")
+    path = os.path.join(base, "Ultimate Download MP4")
     os.makedirs(path, exist_ok=True)
     return path
 
 
 def default_download_dir() -> str:
-    """Pasta padrao de download: Videos\\TikTok Downloads do usuario."""
-    videos = os.path.join(os.path.expanduser("~"), "Videos")
-    if not os.path.isdir(videos):
-        videos = os.path.expanduser("~")
-    path = os.path.join(videos, "TikTok Downloads")
-    os.makedirs(path, exist_ok=True)
-    return path
+    """
+    Pasta-base padrao de download.
+
+    Os arquivos sao organizados em subpastas por plataforma DENTRO desta
+    pasta (ex.: <base>\\YouTube, <base>\\TikTok). Usamos a pasta "Downloads"
+    do usuario quando ela existe; caso contrario, a pasta pessoal.
+    """
+    downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+    base = downloads if os.path.isdir(downloads) else os.path.expanduser("~")
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
+def platform_output_dir(base_folder: str, platform: Platform) -> str:
+    """
+    Devolve (criando se preciso) a subpasta de uma plataforma dentro da
+    pasta-base escolhida pelo usuario: <base_folder>\\<platform.folder>.
+    """
+    folder = os.path.join(base_folder, platform.folder)
+    os.makedirs(folder, exist_ok=True)
+    return folder

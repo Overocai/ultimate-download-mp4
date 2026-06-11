@@ -2,7 +2,7 @@
 Gerenciador de configuracoes (persistidas em JSON).
 
 As configuracoes ficam em:
-    %APPDATA%\\TikTokUltimateDownloader\\config.json
+    %APPDATA%\\Ultimate Download MP4\\config.json
 
 Tudo e carregado na inicializacao e salvo automaticamente sempre que
 o usuario altera algo (pasta de destino, tema, notificacoes, etc.).
