@@ -56,8 +56,9 @@ A **Windows** desktop app that downloads **videos and audio** from **TikTok, You
 
 > **Requirements:** Windows 10/11 (64-bit). **No** Python installation needed.
 
-- Build the installer yourself (see below) or grab `UltimateDownloadMP4-Setup-2.0.0.exe`.
-- Run the Setup and follow the wizard (Next → Accept the license → Install → Finish).
+- ➡️ **[Download the installer (direct)](https://github.com/Overocai/ultimate-download-mp4/releases/download/v2.0.0/UltimateDownloadMP4-Setup-2.0.0.exe)**
+  — or see the **[Releases page](https://github.com/Overocai/ultimate-download-mp4/releases/latest)**.
+- Run **`UltimateDownloadMP4-Setup-2.0.0.exe`** and follow the wizard (Next → Accept the license → Install → Finish).
 - If **Windows SmartScreen** shows a warning, click **"More info" → "Run anyway"**
   (normal for apps without a paid code-signing certificate).
 
